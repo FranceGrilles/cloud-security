@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # cloud-security
 
 Config files and helpers to implement security inside an OpenStack project/tenant.
@@ -17,6 +16,3 @@ For these tests to work, you must :
 ```
 You can add `-b` to the patch command to make a backup
 You can add `--dry-run` to the patch command to make a simulation
-=======
-# cloud-security
->>>>>>> orig/master
