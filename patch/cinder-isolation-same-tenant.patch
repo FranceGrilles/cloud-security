@@ -1,6 +1,6 @@
-diff -ru cinder.orig/transfer/api.py cinder/transfer/api.py
---- cinder.orig/transfer/api.py 2016-05-26 15:34:09.144336470 +0200
-+++ cinder/transfer/api.py      2016-05-26 16:06:47.652323724 +0200
+diff -ur /usr/lib/python2.7/site-packages/cinder.orig/transfer/api.py /usr/lib/python2.7/site-packages/cinder/transfer/api.py
+--- /usr/lib/python2.7/site-packages/cinder.orig/transfer/api.py	2016-05-27 09:17:39.018871358 +0200
++++ /usr/lib/python2.7/site-packages/cinder/transfer/api.py	2016-05-27 09:19:05.456905488 +0200
 @@ -61,8 +61,8 @@
  
      def delete(self, context, transfer_id):
@@ -23,18 +23,9 @@ diff -ru cinder.orig/transfer/api.py cinder/transfer/api.py
          if volume_ref['status'] != "available":
              raise exception.InvalidVolume(reason=_("status must be available"))
  
-diff -ru cinder.orig/volume/api.py cinder/volume/api.py
---- cinder.orig/volume/api.py   2016-05-26 15:38:27.305292600 +0200
-+++ cinder/volume/api.py        2016-05-26 15:09:15.769295413 +0200
-@@ -16,7 +16,7 @@
- 
- """Handles all requests relating to volumes."""
- 
--import ast
-+
- import collections
- import datetime
- import functools
+diff -ur /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py /usr/lib/python2.7/site-packages/cinder/volume/api.py
+--- /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py	2016-05-27 09:17:39.019871358 +0200
++++ /usr/lib/python2.7/site-packages/cinder/volume/api.py	2016-05-27 09:21:34.045878862 +0200
 @@ -206,7 +206,10 @@
                 source_replica=None, consistencygroup=None,
                 cgsnapshot=None, multiattach=False, source_cg=None):
@@ -47,23 +38,7 @@ diff -ru cinder.orig/volume/api.py cinder/volume/api.py
  
          # NOTE(jdg): we can have a create without size if we're
          # doing a create from snap or volume.  Currently
-@@ -258,7 +261,6 @@
-             msg = _("No volume_type should be provided when creating test "
-                     "replica.")
-             raise exception.InvalidInput(reason=msg)
--
-         if snapshot and volume_type:
-             if volume_type['id'] != snapshot.volume_type_id:
-                 if not self._retype_is_possible(context,
-@@ -505,7 +507,6 @@
-         return volumes
- 
-     def get_snapshot(self, context, snapshot_id):
--        check_policy(context, 'get_snapshot')
-         snapshot = objects.Snapshot.get_by_id(context, snapshot_id)
- 
-         # FIXME(jdg): The objects don't have the db name entries
-@@ -926,9 +927,11 @@
+@@ -925,9 +928,11 @@
                   resource=result)
          return result
  
@@ -76,7 +51,7 @@ diff -ru cinder.orig/volume/api.py cinder/volume/api.py
          if not force and snapshot.status not in ["available", "error"]:
              LOG.error(_LE('Unable to delete snapshot: %(snap_id)s, '
                            'due to invalid status. '
-@@ -956,8 +959,11 @@
+@@ -955,8 +960,10 @@
          LOG.info(_LI("Snapshot delete request issued successfully."),
                   resource=snapshot)
  
@@ -84,9 +59,7 @@ diff -ru cinder.orig/volume/api.py cinder/volume/api.py
      def update_snapshot(self, context, snapshot, fields):
 +        rv = self.db.volume_get(context, snapshot.volume_id)
 +        volume = dict(rv)
-+        LOG.error("\nXXXXXX %s" % volume)
 +        check_policy(context, 'update_snapshot', volume)
          snapshot.update(fields)
          snapshot.save()
  
-

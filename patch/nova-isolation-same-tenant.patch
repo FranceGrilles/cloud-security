@@ -1,6 +1,22 @@
-diff -ru /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/console_output.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/console_output.py
---- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/console_output.py	2016-05-26 09:25:05.960448399 +0200
-+++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/console_output.py	2016-05-26 10:07:28.578345458 +0200
+diff -ur /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/admin_password.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/admin_password.py
+--- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/admin_password.py	2016-05-27 08:51:19.013239099 +0200
++++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/admin_password.py	2016-05-27 08:52:25.986646699 +0200
+@@ -43,10 +43,10 @@
+     @validation.schema(admin_password.change_password)
+     def change_password(self, req, id, body):
+         context = req.environ['nova.context']
+-        authorize(context)
++        instance = common.get_instance(self.compute_api, context, id)
++        authorize(context, target=instance)
+ 
+         password = body['changePassword']['adminPass']
+-        instance = common.get_instance(self.compute_api, context, id)
+         try:
+             self.compute_api.set_admin_password(context, instance, password)
+         except exception.InstanceUnknownCell as e:
+diff -ur /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/console_output.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/console_output.py
+--- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/console_output.py	2016-05-27 08:51:19.017237499 +0200
++++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/console_output.py	2016-05-27 08:51:52.304917099 +0200
 @@ -41,9 +41,9 @@
      def get_console_output(self, req, id, body):
          """Get text console output."""
@@ -13,9 +29,9 @@ diff -ru /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/consol
          length = body['os-getConsoleOutput'].get('length')
          # TODO(cyeoh): In a future API update accept a length of -1
          # as meaning unlimited length (convert to None)
-diff -ru /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/lock_server.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/lock_server.py
---- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/lock_server.py	2016-05-26 09:25:05.961448399 +0200
-+++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/lock_server.py	2016-05-26 10:27:33.133299338 +0200
+diff -ur /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/lock_server.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/lock_server.py
+--- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/lock_server.py	2016-05-27 08:51:19.019236699 +0200
++++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/lock_server.py	2016-05-27 08:51:52.304917099 +0200
 @@ -34,8 +34,8 @@
      def _lock(self, req, id, body):
          """Lock a server instance."""
@@ -36,9 +52,9 @@ diff -ru /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/lock_s
          if not self.compute_api.is_expected_locked_by(context, instance):
              authorize(context, target=instance,
                        action='unlock:unlock_override')
-diff -ru /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/pause_server.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/pause_server.py
---- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/pause_server.py	2016-05-26 09:25:05.965448399 +0200
-+++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/pause_server.py	2016-05-26 10:14:22.363301549 +0200
+diff -ur /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/pause_server.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/pause_server.py
+--- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/pause_server.py	2016-05-27 08:51:19.021235899 +0200
++++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/pause_server.py	2016-05-27 08:51:52.304917099 +0200
 @@ -37,8 +37,8 @@
      def _pause(self, req, id, body):
          """Permit Admins to pause the server."""
@@ -59,9 +75,9 @@ diff -ru /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/pause_
          try:
              self.compute_api.unpause(ctxt, server)
          except exception.InstanceIsLocked as e:
-diff -ru /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/remote_consoles.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/remote_consoles.py
---- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/remote_consoles.py	2016-05-26 09:25:06.088448399 +0200
-+++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/remote_consoles.py	2016-05-26 10:04:03.305297309 +0200
+diff -ur /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/remote_consoles.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/remote_consoles.py
+--- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/remote_consoles.py	2016-05-27 08:51:19.066217899 +0200
++++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/remote_consoles.py	2016-05-27 08:51:52.305916699 +0200
 @@ -44,13 +44,13 @@
      def get_vnc_console(self, req, id, body):
          """Get text console output."""
@@ -124,9 +140,102 @@ diff -ru /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/remote
              output = self.compute_api.get_serial_console(context,
                                                           instance,
                                                           console_type)
-diff -ru /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/servers.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/servers.py
---- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/servers.py	2016-05-26 09:25:05.959448399 +0200
-+++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/servers.py	2016-05-26 10:25:38.530299537 +0200
+diff -ur /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/server_metadata.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/server_metadata.py
+--- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/server_metadata.py	2016-05-27 08:51:19.014238699 +0200
++++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/server_metadata.py	2016-05-27 08:54:32.721573299 +0200
+@@ -55,7 +55,8 @@
+     def index(self, req, server_id):
+         """Returns the list of metadata for a given instance."""
+         context = req.environ['nova.context']
+-        authorize(context, action='index')
++        server = common.get_instance(self.compute_api, context, server_id)
++        authorize(context, action='index', target=server)
+         return {'metadata': self._get_metadata(context, server_id)}
+ 
+     @extensions.expected_errors((400, 403, 404, 409, 413))
+@@ -65,7 +66,8 @@
+     def create(self, req, server_id, body):
+         metadata = body['metadata']
+         context = req.environ['nova.context']
+-        authorize(context, action='create')
++        server = common.get_instance(self.compute_api, context, server_id)
++        authorize(context, action='create', target=server)
+         new_metadata = self._update_instance_metadata(context,
+                                                       server_id,
+                                                       metadata,
+@@ -77,7 +79,8 @@
+     @validation.schema(server_metadata.update)
+     def update(self, req, server_id, id, body):
+         context = req.environ['nova.context']
+-        authorize(context, action='update')
++        server = common.get_instance(self.compute_api, context, server_id)
++        authorize(context, action='update', target=server)
+         meta_item = body['meta']
+         if id not in meta_item:
+             expl = _('Request body and URI mismatch')
+@@ -94,7 +97,8 @@
+     @validation.schema(server_metadata.update_all)
+     def update_all(self, req, server_id, body):
+         context = req.environ['nova.context']
+-        authorize(context, action='update_all')
++        server = common.get_instance(self.compute_api, context, server_id)
++        authorize(context, action='update_all', target=server)
+         metadata = body['metadata']
+         new_metadata = self._update_instance_metadata(context,
+                                                       server_id,
+@@ -129,7 +133,8 @@
+     def show(self, req, server_id, id):
+         """Return a single metadata item."""
+         context = req.environ['nova.context']
+-        authorize(context, action='show')
++        server = common.get_instance(self.compute_api, context, server_id)
++        authorize(context, action='show', target=server)
+         data = self._get_metadata(context, server_id)
+ 
+         try:
+@@ -143,14 +148,14 @@
+     def delete(self, req, server_id, id):
+         """Deletes an existing metadata."""
+         context = req.environ['nova.context']
+-        authorize(context, action='delete')
++        server = common.get_instance(self.compute_api, context, server_id)
++        authorize(context, action='delete', target=server)
+         metadata = self._get_metadata(context, server_id)
+ 
+         if id not in metadata:
+             msg = _("Metadata item was not found")
+             raise exc.HTTPNotFound(explanation=msg)
+ 
+-        server = common.get_instance(self.compute_api, context, server_id)
+         try:
+             self.compute_api.delete_instance_metadata(context, server, id)
+ 
+diff -ur /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/server_password.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/server_password.py
+--- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/server_password.py	2016-05-27 08:51:19.015238299 +0200
++++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/server_password.py	2016-05-27 08:52:53.228197299 +0200
+@@ -34,8 +34,8 @@
+     @extensions.expected_errors(404)
+     def index(self, req, server_id):
+         context = req.environ['nova.context']
+-        authorize(context)
+         instance = common.get_instance(self.compute_api, context, server_id)
++        authorize(context, target=instance)
+ 
+         passw = password.extract_password(instance)
+         return {'password': passw or ''}
+@@ -50,8 +50,8 @@
+         """
+ 
+         context = req.environ['nova.context']
+-        authorize(context)
+         instance = common.get_instance(self.compute_api, context, server_id)
++        authorize(context, target=instance)
+         meta = password.convert_password(context, None)
+         instance.system_metadata.update(meta)
+         instance.save()
+diff -ur /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/servers.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/servers.py
+--- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/servers.py	2016-05-27 08:51:19.016237899 +0200
++++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/servers.py	2016-05-27 08:51:52.305916699 +0200
 @@ -753,8 +753,8 @@
          resize_schema['properties']['resize']['properties'].update(schema)
  
@@ -237,9 +346,9 @@ diff -ru /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/server
          bdms = objects.BlockDeviceMappingList.get_by_instance_uuid(
                      context, instance.uuid)
  
-diff -ru /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/shelve.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/shelve.py
---- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/shelve.py	2016-05-26 09:25:05.960448399 +0200
-+++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/shelve.py	2016-05-26 10:18:52.519351019 +0200
+diff -ur /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/shelve.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/shelve.py
+--- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/shelve.py	2016-05-27 08:51:19.018237099 +0200
++++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/shelve.py	2016-05-27 08:51:52.306916299 +0200
 @@ -38,9 +38,9 @@
      def _shelve(self, req, id, body):
          """Move an instance into shelved mode."""
@@ -275,9 +384,9 @@ diff -ru /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/shelve
          try:
              self.compute_api.unshelve(context, instance)
          except exception.InstanceUnknownCell as e:
-diff -ru /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/suspend_server.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/suspend_server.py
---- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/suspend_server.py	2016-05-26 09:25:05.961448399 +0200
-+++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/suspend_server.py	2016-05-26 10:15:36.570306117 +0200
+diff -ur /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/suspend_server.py /usr/lib/python2.7/site-packages/nova/api/openstack/compute/suspend_server.py
+--- /usr/lib/python2.7/site-packages/nova/api/openstack/compute.orig/suspend_server.py	2016-05-27 08:51:19.018237099 +0200
++++ /usr/lib/python2.7/site-packages/nova/api/openstack/compute/suspend_server.py	2016-05-27 08:51:52.306916299 +0200
 @@ -37,9 +37,9 @@
      def _suspend(self, req, id, body):
          """Permit admins to suspend the server."""
