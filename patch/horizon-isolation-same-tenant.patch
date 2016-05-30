@@ -11,7 +11,6 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/api/cinder.py /
  
      @property
      def is_bootable(self):
-Les fichiers binaires /usr/share/openstack-dashboard/openstack_dashboard.orig/api/cinder.pyc et /usr/share/openstack-dashboard/openstack_dashboard/api/cinder.pyc sont différents
 diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/instances/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/instances/tables.py
 --- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/instances/tables.py	2016-05-27 10:39:48.806871301 +0200
 +++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/instances/tables.py	2016-05-27 11:37:27.839878202 +0200
@@ -171,11 +170,3 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
  
              if attach_allowed or detach_allowed:
                  return volume.status in ("available", "in-use")
-@@ -195,7 +197,7 @@
-     classes = ("ajax-modal",)
-     policy_rules = (("volume", "volume:create_transfer"),)
- 
--    def allowed(self, request, volume=None):
-+    def allowed(self, request, volume=None): 
-         return volume.status == "available"
- 
