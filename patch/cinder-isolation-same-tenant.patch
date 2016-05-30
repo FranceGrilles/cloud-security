@@ -25,7 +25,7 @@ diff -ur /usr/lib/python2.7/site-packages/cinder.orig/transfer/api.py /usr/lib/p
  
 diff -ur /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py /usr/lib/python2.7/site-packages/cinder/volume/api.py
 --- /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py	2016-05-27 09:17:39.019871358 +0200
-+++ /usr/lib/python2.7/site-packages/cinder/volume/api.py	2016-05-27 09:21:34.045878862 +0200
++++ /usr/lib/python2.7/site-packages/cinder/volume/api.py	2016-05-30 11:09:02.750485555 +0200
 @@ -206,7 +206,10 @@
                 source_replica=None, consistencygroup=None,
                 cgsnapshot=None, multiattach=False, source_cg=None):

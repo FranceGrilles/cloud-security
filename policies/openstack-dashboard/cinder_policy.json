@@ -17,7 +17,6 @@
     "volume:create_snapshot": [["rule:default"]],
     "volume:delete_snapshot": [["rule:default"]],
     "volume:get_snapshot": [],
-    "volume:update_snapshot": [["rule:default"]],
     "volume:get_all_snapshots": [],
     "volume:extend": [["rule:default"]],
     "volume:retype": [["rule:default"]],
@@ -62,9 +61,7 @@
     "volume_extension:services": [["rule:admin_api"]],
     "volume:services": [["rule:admin_api"]],
 
-    "volume:create_transfer": [],
     "volume:accept_transfer": [],
-    "volume:delete_transfer": [],
     "volume:get_all_transfers": [],
 
     "backup:create" : ["rule:default"],
