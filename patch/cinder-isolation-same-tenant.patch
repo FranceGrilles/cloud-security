@@ -1,0 +1,65 @@
+diff -ur /usr/lib/python2.7/site-packages/cinder.orig/transfer/api.py /usr/lib/python2.7/site-packages/cinder/transfer/api.py
+--- /usr/lib/python2.7/site-packages/cinder.orig/transfer/api.py	2016-05-27 09:17:39.018871358 +0200
++++ /usr/lib/python2.7/site-packages/cinder/transfer/api.py	2016-05-27 09:19:05.456905488 +0200
+@@ -61,8 +61,8 @@
+ 
+     def delete(self, context, transfer_id):
+         """Make the RPC call to delete a volume transfer."""
+-        volume_api.check_policy(context, 'delete_transfer')
+         transfer = self.db.transfer_get(context, transfer_id)
++        volume_api.check_policy(context, 'delete_transfer', target=transfer)
+ 
+         volume_ref = self.db.volume_get(context, transfer.volume_id)
+         volume_utils.notify_about_volume_usage(context, volume_ref,
+@@ -104,9 +104,9 @@
+ 
+     def create(self, context, volume_id, display_name):
+         """Creates an entry in the transfers table."""
+-        volume_api.check_policy(context, 'create_transfer')
+-        LOG.info(_LI("Generating transfer record for volume %s"), volume_id)
+         volume_ref = self.db.volume_get(context, volume_id)
++        volume_api.check_policy(context, 'create_transfer', target=volume_ref)
++        LOG.info(_LI("Generating transfer record for volume %s"), volume_id)
+         if volume_ref['status'] != "available":
+             raise exception.InvalidVolume(reason=_("status must be available"))
+ 
+diff -ur /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py /usr/lib/python2.7/site-packages/cinder/volume/api.py
+--- /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py	2016-05-27 09:17:39.019871358 +0200
++++ /usr/lib/python2.7/site-packages/cinder/volume/api.py	2016-05-30 11:09:02.750485555 +0200
+@@ -206,7 +206,10 @@
+                source_replica=None, consistencygroup=None,
+                cgsnapshot=None, multiattach=False, source_cg=None):
+ 
+-        check_policy(context, 'create')
++        if snapshot:
++            check_policy(context, 'update_snapshot', snapshot.volume_id)
++        else:
++            check_policy(context, 'create')
+ 
+         # NOTE(jdg): we can have a create without size if we're
+         # doing a create from snap or volume.  Currently
+@@ -925,9 +928,11 @@
+                  resource=result)
+         return result
+ 
+-    @wrap_check_policy
+     def delete_snapshot(self, context, snapshot, force=False,
+                         unmanage_only=False):
++        rv = self.db.volume_get(context, snapshot.volume_id)
++        volume = dict(rv)
++        check_policy(context, 'delete_snapshot', volume)
+         if not force and snapshot.status not in ["available", "error"]:
+             LOG.error(_LE('Unable to delete snapshot: %(snap_id)s, '
+                           'due to invalid status. '
+@@ -955,8 +960,10 @@
+         LOG.info(_LI("Snapshot delete request issued successfully."),
+                  resource=snapshot)
+ 
+-    @wrap_check_policy
+     def update_snapshot(self, context, snapshot, fields):
++        rv = self.db.volume_get(context, snapshot.volume_id)
++        volume = dict(rv)
++        check_policy(context, 'update_snapshot', volume)
+         snapshot.update(fields)
+         snapshot.save()
+ 
