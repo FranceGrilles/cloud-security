@@ -1,0 +1,14 @@
+--- /usr/lib/python2.7/site-packages/nova/api/openstack/extensions.py.orig	2016-06-21 16:17:56.639796727 +0200
++++ /usr/lib/python2.7/site-packages/nova/api/openstack/extensions.py	2016-06-21 16:19:07.854800818 +0200
+@@ -484,9 +484,9 @@
+                         t_errors = errors
+                     if exc.code in t_errors:
+                         raise
+-                elif isinstance(exc, exception.PolicyNotAuthorized):
++                elif isinstance(exc, exception.Forbidden):
+                     # Note(cyeoh): Special case to handle
+-                    # PolicyNotAuthorized exceptions so every
++                    # Forbidden exceptions so every
+                     # extension method does not need to wrap authorize
+                     # calls. ResourceExceptionHandler silently
+                     # converts NotAuthorized to HTTPForbidden

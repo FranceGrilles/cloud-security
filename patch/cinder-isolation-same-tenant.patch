@@ -25,7 +25,7 @@ diff -ur /usr/lib/python2.7/site-packages/cinder.orig/transfer/api.py /usr/lib/p
  
 diff -ur /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py /usr/lib/python2.7/site-packages/cinder/volume/api.py
 --- /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py	2016-05-27 09:17:39.019871358 +0200
-+++ /usr/lib/python2.7/site-packages/cinder/volume/api.py	2016-05-30 11:09:02.750485555 +0200
++++ /usr/lib/python2.7/site-packages/cinder/volume/api.py	2016-06-21 14:42:05.014782357 +0200
 @@ -206,7 +206,10 @@
                 source_replica=None, consistencygroup=None,
                 cgsnapshot=None, multiattach=False, source_cg=None):
@@ -38,7 +38,17 @@ diff -ur /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py /usr/lib/pyt
  
          # NOTE(jdg): we can have a create without size if we're
          # doing a create from snap or volume.  Currently
-@@ -925,9 +928,11 @@
+@@ -506,6 +509,9 @@
+ 
+     def get_snapshot(self, context, snapshot_id):
+         snapshot = objects.Snapshot.get_by_id(context, snapshot_id)
++        rv = self.db.volume_get(context, snapshot.volume_id)
++        volume = dict(rv)
++        check_policy(context, 'get_snapshot', volume)
+ 
+         # FIXME(jdg): The objects don't have the db name entries
+         # so build the resource tag manually for now.
+@@ -925,9 +931,11 @@
                   resource=result)
          return result
  
@@ -51,7 +61,7 @@ diff -ur /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py /usr/lib/pyt
          if not force and snapshot.status not in ["available", "error"]:
              LOG.error(_LE('Unable to delete snapshot: %(snap_id)s, '
                            'due to invalid status. '
-@@ -955,8 +960,10 @@
+@@ -955,8 +963,10 @@
          LOG.info(_LI("Snapshot delete request issued successfully."),
                   resource=snapshot)
  

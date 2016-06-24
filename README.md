@@ -21,5 +21,6 @@ For these tests to work, you must :
 You can add `-b` to the patch command to make a backup
 You can add `--dry-run` to the patch command to make a simulation
 
-NOTE : 
-The patchs are organized in branches you may checkout the kilo/liberty/mitaka branch to see the patch and policy files
+NOTES : 
+ * The patchs are organized in branches you may checkout the kilo/liberty/mitaka branch to see the patch and policy files
+ * Each `policy.json` has its suffixed equivalent `policy.json.orig` to show the differences between the original and modified files
