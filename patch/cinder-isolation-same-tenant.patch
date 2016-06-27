@@ -1,0 +1,54 @@
+diff -ur /usr/lib/python2.7/site-packages/cinder/volume.orig/api.py /usr/lib/python2.7/site-packages/cinder/volume/api.py
+--- /usr/lib/python2.7/site-packages/cinder/volume.orig/api.py	2016-06-24 17:11:57.361000000 +0200
++++ /usr/lib/python2.7/site-packages/cinder/volume/api.py	2016-06-24 17:21:43.291000000 +0200
+@@ -164,6 +164,12 @@
+                source_replica=None, consistencygroup=None,
+                cgsnapshot=None, multiattach=False):
+ 
++        if snapshot:
++            check_policy(context, 'update_snapshot', snapshot.volume_id)
++        else:
++            check_policy(context, 'create')
++
++
+         # NOTE(jdg): we can have a create without size if we're
+         # doing a create from snap or volume.  Currently
+         # the taskflow api will handle this and pull in the
+@@ -440,10 +446,14 @@
+         return volumes
+ 
+     def get_snapshot(self, context, snapshot_id):
++        snapshot = objects.Snapshot.get_by_id(context, snapshot_id)
++        rv = self.db.volume_get(context, snapshot.volume_id)
++        volume = dict(rv)
++        check_policy(context, 'get_snapshot', volume)
+         return objects.Snapshot.get_by_id(context, snapshot_id)
+ 
+     def get_volume(self, context, volume_id):
+-        check_policy(context, 'get_volume')
++        check_policy(context, 'get_volume', volume)
+         rv = self.db.volume_get(context, volume_id)
+         return dict(rv.iteritems())
+ 
+@@ -818,8 +828,10 @@
+         return self._create_snapshot(context, volume, name, description,
+                                      True, metadata)
+ 
+-    @wrap_check_policy
+     def delete_snapshot(self, context, snapshot, force=False):
++        rv = self.db.volume_get(context, snapshot.volume_id)
++        volume = dict(rv)
++        check_policy(context, 'delete_snapshot', volume)
+         if not force and snapshot['status'] not in ["available", "error"]:
+             LOG.error(_LE('Unable to delete snapshot: %(snap_id)s, '
+                           'due to invalid status. '
+@@ -848,6 +860,9 @@
+ 
+     @wrap_check_policy
+     def update_snapshot(self, context, snapshot, fields):
++        rv = self.db.volume_get(context, snapshot.volume_id)
++        volume = dict(rv)
++        check_policy(context, 'update_snapshot', volume)
+         snapshot.update(fields)
+         snapshot.save(context)
+ 

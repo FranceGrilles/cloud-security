@@ -9,6 +9,9 @@
     "volume:delete": "rule:admin_or_user",
     "volume:get_volume_metadata": "rule:admin_or_user",
     "volume:get_snapshot": "rule:admin_or_user",
+    "volume:create_snapshot": "rule:admin_or_user",
+    "volume:delete_snapshot": "rule:admin_or_user",
+    "volume:reserve_volume": "rule:admin_or_user",
     "volume:update_readonly_flag": "rule:admin_or_user",
     "volume:extend": "rule:admin_or_user",
     "volume:retype": "rule:admin_or_user",
@@ -24,7 +27,7 @@
     "volume:get_volume_admin_metadata": "rule:admin_api",
     "volume:delete_volume_admin_metadata": "rule:admin_api",
     "volume:update_volume_admin_metadata": "rule:admin_api",
-    "volume:get_all_snapshots": "",
+    "volume:get_all_snapshots": "rule:admin_or_owner",
 
     "volume_extension:types_manage": "rule:admin_api",
     "volume_extension:types_extra_specs": "rule:admin_api",
