@@ -7,8 +7,6 @@
     "admin_api": [["is_admin:True"]],
 
     "volume:create": [],
-    "volume:update": [["rule:default"]],
-    "volume:delete": [["rule:default"]],
     "volume:get_all": [],
     "volume:get_volume_metadata": [],
     "volume:get_volume_admin_metadata": [["rule:admin_api"]],
@@ -16,9 +14,6 @@
     "volume:update_volume_admin_metadata": [["rule:admin_api"]],
     "volume:get_snapshot": [],
     "volume:get_all_snapshots": [],
-    "volume:extend": [["rule:default"]],
-    "volume:retype": [["rule:default"]],
-    "volume:upload_to_image": [["rule:default"]],
 
     "volume:update": [["rule:admin_or_user"]],
     "volume:extend": [["rule:admin_or_user"]],

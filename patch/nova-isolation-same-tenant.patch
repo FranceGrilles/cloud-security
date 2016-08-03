@@ -501,32 +501,6 @@ diff -ur /usr/lib/python2.7/site-packages/nova.orig/api/openstack/extensions.py 
                      # extension method does not need to wrap authorize
                      # calls. ResourceExceptionHandler silently
                      # converts NotAuthorized to HTTPForbidden
-diff -ur /usr/lib/python2.7/site-packages/nova.orig/policy.py /usr/lib/python2.7/site-packages/nova/policy.py
---- /usr/lib/python2.7/site-packages/nova.orig/policy.py	2016-07-13 15:52:39.280589822 +0200
-+++ /usr/lib/python2.7/site-packages/nova/policy.py	2016-07-22 11:45:07.254132334 +0200
-@@ -94,17 +94,20 @@
-     """
-     init()
-     credentials = context.to_dict()
-+
-+
-     if not exc:
-         exc = exception.PolicyNotAuthorized
-     try:
-         result = _ENFORCER.enforce(action, target, credentials,
-                                    do_raise=do_raise, exc=exc, action=action)
-+        LOG.info('\nXXX %s\tACTION : %s\tTARGET : %s' %  (result, action, target))
-     except Exception:
-         credentials.pop('auth_token', None)
-         with excutils.save_and_reraise_exception():
--            LOG.debug('Policy check for %(action)s failed with credentials '
-+            LOG.debug('XXX Policy check for %(action)s on %(target)s failed with credentials '
-                       '%(credentials)s',
--                      {'action': action, 'credentials': credentials})
-+                      {'action': action, 'credentials': credentials, 'target': target})
-     return result
- 
- 
 diff -ur /usr/lib/python2.7/site-packages/nova.orig/volume/cinder.py /usr/lib/python2.7/site-packages/nova/volume/cinder.py
 --- /usr/lib/python2.7/site-packages/nova.orig/volume/cinder.py	2016-07-13 15:52:39.424589040 +0200
 +++ /usr/lib/python2.7/site-packages/nova/volume/cinder.py	2016-07-22 12:00:06.038324132 +0200

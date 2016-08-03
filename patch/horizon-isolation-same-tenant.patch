@@ -10,22 +10,18 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/api/cinder.py /
  
      @property
      def is_bootable(self):
-Les fichiers binaires /usr/share/openstack-dashboard/openstack_dashboard.orig/api/cinder.pyc et /usr/share/openstack-dashboard/openstack_dashboard/api/cinder.pyc sont différents
 diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/images/images/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/images/images/tables.py
 --- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/images/images/tables.py	2016-07-13 16:25:09.680233381 +0200
-+++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/images/images/tables.py	2016-07-22 17:11:34.807117454 +0200
-@@ -26,6 +26,10 @@
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/images/images/tables.py	2016-08-03 14:00:20.335797792 +0200
+@@ -26,6 +26,7 @@
  from horizon.utils.memoized import memoized  # noqa
  
  from openstack_dashboard import api
 +from openstack_dashboard import policy
-+
-+import logging
-+LOG = logging.getLogger(__name__)
  
  NOT_LAUNCHABLE_FORMATS = ['aki', 'ari']
  
-@@ -67,6 +71,18 @@
+@@ -67,6 +68,18 @@
          kwargs['preempt'] = True
          super(LaunchImage, self).__init__(attrs, **kwargs)
  
@@ -34,17 +30,17 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
 +            image.properties['image_type'] == "snapshot":
 +            project_id = request.user.tenant_id
 +            user_id = image.properties['user_id']
-+            _allowed = \
-+                policy.check((("compute", "compute:snapshot"),),
-+                    request,
-+                    {"project_id": project_id, "user_id": user_id})
++            _allowed = policy.check(
++                        (("compute", "compute:snapshot"),), 
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
 +            return _allowed
 +        return True
 +
      def get_link_url(self, datum):
          imageId = self.table.get_object_id(datum)
          url = reverse(self.url)
-@@ -100,14 +116,22 @@
+@@ -100,14 +113,22 @@
              count
          )
  
@@ -57,10 +53,10 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
 +        if image and 'user_id' in image.properties.keys():
 +            project_id = request.user.tenant_id
 +            user_id = image.properties['user_id']
-+            _allowed = \
-+                policy.check((("image", "delete_image"),),
-+                    request,
-+                    {"project_id": project_id, "user_id": user_id})
++            _allowed = policy.check(
++                        (("image", "delete_image"),),
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
 +        else:
 +            _allowed = True
 +    
@@ -70,7 +66,7 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
          # Return True to allow table-level bulk delete action to appear.
          return True
  
-@@ -133,9 +157,14 @@
+@@ -133,9 +154,21 @@
      policy_rules = (("image", "modify_image"),)
  
      def allowed(self, request, image=None):
@@ -80,15 +76,22 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
 +        if image and 'user_id' in image.properties.keys():
 +            project_id = request.user.tenant_id
 +            user_id = image.properties['user_id']
-+            _allowed = \
-+                policy.check((("image", "modify_image"),),
-+                    request,
-+                    {"project_id": project_id, "user_id": user_id})
-+            return image.status in ("active",) and _allowed
++            _allowed = policy.check(
++                        (("image", "modify_image"),),
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
++            if 'image_type' in image.properties.keys():
++                _snap = policy.check(
++                        (("image", "use_snapshot"),),
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
++            else:
++                _snap = True
++            return image.status in ("active",) and _allowed and _snap
          # We don't have bulk editing, so if there isn't an image that's
          # authorized, don't allow the action.
          return False
-@@ -157,7 +186,17 @@
+@@ -157,7 +190,17 @@
      def allowed(self, request, image=None):
          if (image and image.container_format not in NOT_LAUNCHABLE_FORMATS
                  and api.cinder.is_volume_service_enabled(request)):
@@ -97,17 +100,17 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
 +                image.properties['image_type'] == "snapshot":
 +                project_id = request.user.tenant_id
 +                user_id = image.properties['user_id']
-+                _allowed = \
-+                    policy.check((("volume", "volume:create_snapshot"),),
-+                        request,
-+                        {"project_id": project_id, "user_id": user_id})
++                _allowed = policy.check(
++                            (("volume", "volume:create_snapshot"),),
++                            request,
++                            {"project_id": project_id, "user_id": user_id})
 +            else:
 +                _allowed = True
 +            return image.status == "active" and _allowed
          return False
  
  
-@@ -179,10 +218,21 @@
+@@ -179,10 +222,21 @@
          return "javascript:void(0);"
  
      def allowed(self, request, image=None):
@@ -115,10 +118,10 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
 +            image.properties['image_type'] == "snapshot":
 +            project_id = request.user.tenant_id
 +            user_id = image.properties['user_id']
-+            _allowed = \
-+                policy.check((("image", "modify_image"),),
-+                    request,
-+                    {"project_id": project_id, "user_id": user_id})
++            _allowed = policy.check(
++                        (("image", "use_snapshot"),),
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
 +        else:
 +            _allowed = True
          return (api.glance.VERSIONS.active >= 2 and
@@ -170,8 +173,8 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
          return ((instance.status in ACTIVE_STATES
 diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/snapshots/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/snapshots/tables.py
 --- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/snapshots/tables.py	2016-07-13 16:25:09.777233373 +0200
-+++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/snapshots/tables.py	2016-07-13 16:32:38.259226745 +0200
-@@ -96,6 +96,21 @@
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/snapshots/tables.py	2016-08-03 14:01:18.814795072 +0200
+@@ -96,6 +96,22 @@
      def delete(self, request, obj_id):
          api.cinder.volume_snapshot_delete(request, obj_id)
  
@@ -182,9 +185,10 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
 +            volume = cinder.volume_get(request, volume_id)
 +            project_id = getattr(volume, "os-vol-tenant-attr:tenant_id", None)
 +            user_id = getattr(volume, "user_id", None)
-+            _allowed = policy.check((("volume", "volume:delete_snapshot"),),
-+                                    request,
-+                                    {"project_id": project_id, "user_id": user_id})
++            _allowed = policy.check(
++                        (("volume", "volume:delete_snapshot"),),
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
 +            return _allowed
 +        else:
 +            # To display the 'Delete' button (no snapshot provided)
@@ -193,7 +197,7 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
  
  class EditVolumeSnapshot(policy.PolicyTargetMixin, tables.LinkAction):
      name = "edit"
-@@ -105,10 +120,19 @@
+@@ -105,10 +121,19 @@
      icon = "pencil"
      policy_rules = (("volume", "volume:update_snapshot"),)
      policy_target_attrs = (("project_id",
@@ -207,25 +211,25 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
 +        volume = cinder.volume_get(request, volume_id)
 +        project_id = getattr(volume, "os-vol-tenant-attr:tenant_id", None)
 +        user_id = getattr(volume, "user_id", None)
-+        _allowed = \
-+            policy.check((("volume", "volume:update_snapshot"),),
-+                         request,
-+                         {"project_id": project_id, "user_id": user_id})
++        _allowed = policy.check(
++                    (("volume", "volume:update_snapshot"),),
++                    request,
++                    {"project_id": project_id, "user_id": user_id})
 +        return snapshot.status == "available" and _allowed
  
  
  class CreateVolumeFromSnapshot(tables.LinkAction):
-@@ -125,8 +149,15 @@
+@@ -125,8 +150,15 @@
          return "?".join([base_url, params])
  
      def allowed(self, request, volume=None):
 +        _volume = cinder.volume_get(request, volume.volume_id)
 +        project_id = getattr(_volume, "os-vol-tenant-attr:tenant_id", None)
 +        user_id = getattr(_volume, "user_id", None)
-+        _allowed = \
-+            policy.check((("volume", "volume:update_snapshot"),),
-+                         request,
-+                         {"project_id": project_id, "user_id": user_id})
++        _allowed = policy.check(
++                    (("volume", "volume:update_snapshot"),),
++                    request,
++                    {"project_id": project_id, "user_id": user_id})
          if volume and cinder.is_volume_service_enabled(request):
 -            return volume.status == "available"
 +            return volume.status == "available" and _allowed
@@ -234,7 +238,7 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
  
 diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/volumes/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/volumes/tables.py
 --- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/volumes/tables.py	2016-07-13 16:25:09.791233372 +0200
-+++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/volumes/tables.py	2016-07-13 16:34:59.809233609 +0200
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/volumes/tables.py	2016-08-03 14:02:59.919798299 +0200
 @@ -38,7 +38,8 @@
  
  
@@ -249,18 +253,23 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
      def allowed(self, request, volume=None):
          if volume:
              project_id = getattr(volume, "os-vol-tenant-attr:tenant_id", None)
+-            attach_allowed = \
+-                policy.check((("compute", "compute:attach_volume"),),
+-                             request,
+-                             {"project_id": project_id})
+-            detach_allowed = \
+-                policy.check((("compute", "compute:detach_volume"),),
+-                             request,
+-                             {"project_id": project_id})
 +            user_id = getattr(volume, "user_id", None)
-             attach_allowed = \
-                 policy.check((("compute", "compute:attach_volume"),),
-                              request,
--                             {"project_id": project_id})
-+                             {"project_id": project_id, "user_id": user_id})
-             detach_allowed = \
-                 policy.check((("compute", "compute:detach_volume"),),
-                              request,
--                             {"project_id": project_id})
-+                             {"project_id": project_id, "user_id": user_id})
++            attach_allowed = policy.check(
++                                (("compute", "compute:attach_volume"),),
++                                request,
++                                {"project_id": project_id, "user_id": user_id})
++            detach_allowed = policy.check(
++                                (("compute", "compute:detach_volume"),),
++                                request,
++                                {"project_id": project_id, "user_id": user_id})
  
              if attach_allowed or detach_allowed:
                  return volume.status in ("available", "in-use")
-Les fichiers binaires /usr/share/openstack-dashboard/openstack_dashboard.orig/local/local_settings.pyc et /usr/share/openstack-dashboard/openstack_dashboard/local/local_settings.pyc sont différents
