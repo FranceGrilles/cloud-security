@@ -170,3 +170,126 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
  
              if attach_allowed or detach_allowed:
                  return volume.status in ("available", "in-use")
+diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/images/images/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/images/images/tables.py
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/images/images/tables.py	2016-08-05 15:44:14.602371389 +0200
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/images/images/tables.py	2016-08-05 15:48:54.726296451 +0200
+@@ -26,6 +26,7 @@
+ from horizon.utils.memoized import memoized  # noqa
+ 
+ from openstack_dashboard import api
++from openstack_dashboard import policy
+ from openstack_dashboard.api import base
+ 
+ NOT_LAUNCHABLE_FORMATS = ['aki', 'ari']
+@@ -68,6 +69,18 @@
+         kwargs['preempt'] = True
+         super(LaunchImage, self).__init__(attrs, **kwargs)
+ 
++    def allowed(self, request, image=None):
++        if image and 'user_id' in image.properties.keys() and \
++            image.properties['image_type'] == "snapshot":
++            project_id = request.user.tenant_id
++            user_id = image.properties['user_id']
++            _allowed = policy.check(
++                        (("compute", "compute:snapshot"),), 
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
++            return _allowed
++        return True
++
+     def get_link_url(self, datum):
+         imageId = self.table.get_object_id(datum)
+         url = reverse(self.url)
+@@ -101,14 +114,22 @@
+             count
+         )
+ 
+-    policy_rules = (("image", "delete_image"),)
+-
+     def allowed(self, request, image=None):
+         # Protected images can not be deleted.
+         if image and image.protected:
+             return False
++        if image and 'user_id' in image.properties.keys():
++            project_id = request.user.tenant_id
++            user_id = image.properties['user_id']
++            _allowed = policy.check(
++                        (("image", "delete_image"),),
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
++        else:
++            _allowed = True
++
+         if image:
+-            return image.owner == request.user.tenant_id
++            return image.owner == request.user.tenant_id and _allowed
+         # Return True to allow table-level bulk delete action to appear.
+         return True
+ 
+@@ -134,9 +155,21 @@
+     policy_rules = (("image", "modify_image"),)
+ 
+     def allowed(self, request, image=None):
+-        if image:
+-            return image.status in ("active",) and \
+-                image.owner == request.user.tenant_id
++        if image and 'user_id' in image.properties.keys():
++            project_id = request.user.tenant_id
++            user_id = image.properties['user_id']
++            _allowed = policy.check(
++                        (("image", "modify_image"),),
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
++            if 'image_type' in image.properties.keys():
++                _snap = policy.check(
++                        (("image", "use_snapshot"),),
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
++            else:
++                _snap = True
++            return image.status in ("active",) and _allowed and _snap
+         # We don't have bulk editing, so if there isn't an image that's
+         # authorized, don't allow the action.
+         return False
+@@ -158,7 +191,17 @@
+     def allowed(self, request, image=None):
+         if (image and image.container_format not in NOT_LAUNCHABLE_FORMATS
+                 and base.is_service_enabled(request, 'volume')):
+-            return image.status == "active"
++            if 'image_type' in image.properties.keys() and \
++                image.properties['image_type'] == "snapshot":
++                project_id = request.user.tenant_id
++                user_id = image.properties['user_id']
++                _allowed = policy.check(
++                            (("volume", "volume:create_snapshot"),),
++                            request,
++                            {"project_id": project_id, "user_id": user_id})
++            else:
++                _allowed = True
++            return image.status == "active" and _allowed
+         return False
+ 
+ 
+@@ -180,10 +223,21 @@
+         return "javascript:void(0);"
+ 
+     def allowed(self, request, image=None):
++        if 'image_type' in image.properties.keys() and \
++            image.properties['image_type'] == "snapshot":
++            project_id = request.user.tenant_id
++            user_id = image.properties['user_id']
++            _allowed = policy.check(
++                        (("image", "use_snapshot"),),
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
++        else:
++            _allowed = True
+         return (api.glance.VERSIONS.active >= 2 and
+                 image and
+                 image.status == "active" and
+-                image.owner == request.user.project_id)
++                image.owner == request.user.project_id and
++                _allowed)
+ 
+ 
+ def filter_tenants():
