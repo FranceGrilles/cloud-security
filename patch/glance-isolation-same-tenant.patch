@@ -1,0 +1,48 @@
+diff -ur /usr/lib/python2.7/site-packages/glance.orig/api/v1/images.py /usr/lib/python2.7/site-packages/glance/api/v1/images.py
+--- /usr/lib/python2.7/site-packages/glance.orig/api/v1/images.py	2016-07-22 10:28:23.539179363 +0200
++++ /usr/lib/python2.7/site-packages/glance/api/v1/images.py	2016-08-03 11:55:52.738783943 +0200
+@@ -450,6 +450,12 @@
+         self._enforce(req, 'get_image')
+         image_meta = self.get_image_meta_or_404(req, id)
+         image_meta = redact_loc(image_meta)
++
++        img = utils.create_mashup_dict(image_meta)
++        if 'image_type' in img:
++            if img['image_type'] == 'snapshot':
++                self._enforce(req, 'use_snapshot', target=img)
++
+         self._enforce_read_protected_props(image_meta, req)
+         return {
+             'image_meta': image_meta
+@@ -940,7 +946,9 @@
+ 
+         :retval Returns the updated image information as a mapping
+         """
+-        self._enforce(req, 'modify_image')
++        orig_image_meta = self.get_image_meta_or_404(req, id)
++        image = utils.create_mashup_dict(orig_image_meta)
++        self._enforce(req, 'modify_image', target=image)
+         is_public = image_meta.get('is_public')
+         if is_public:
+             self._enforce(req, 'publicize_image')
+@@ -949,7 +957,6 @@
+         if image_data or Controller._copy_from(req):
+             self._enforce(req, 'upload_image')
+ 
+-        orig_image_meta = self.get_image_meta_or_404(req, id)
+         orig_status = orig_image_meta['status']
+ 
+         # Do not allow any updates on a deleted image.
+@@ -1107,9 +1114,10 @@
+         :raises: HttpUnauthorized if image or any chunk is not
+                 deleteable by the requesting user
+         """
+-        self._enforce(req, 'delete_image')
+-
+         image = self.get_image_meta_or_404(req, id)
++        img = utils.create_mashup_dict(image)
++        self._enforce(req, 'delete_image', target=img)
++
+         if image['protected']:
+             msg = _("Image is protected")
+             LOG.warn(msg)
