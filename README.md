@@ -1,7 +1,7 @@
 # cloud-security
 
-Patch and policy files intended for OpenStack cinder, nova and horizon services
-to avoid user interaction in the same project/tenant.
+Patch and policy files intended for OpenStack cinder, nova, glance and horizon
+services to avoid user interaction in the same project/tenant.
 
 ## Setup / Installation
 
@@ -14,31 +14,34 @@ Note that these tests are already set up for registered FG-Cloud sites via our
 monitoring service (ccnagboxfg).
 
 For these tests to work, you must :
- * update your `/etc/[cinder,nova]/policy.json` to define which actions that 
-   can't be performed by another user (see `policy` directory)
- * update `/etc/openstack-dashboard/[cinder,nova]_policy.json`
+ * update your `/etc/[cinder,nova,glance]/policy.json` to define which actions
+    that can't be performed by another user (see `policy` directory)
+ * update `/etc/openstack-dashboard/[cinder,nova,glance]_policy.json`
  * patch original files if you are running kilo or a newer version to ensure
-   that the policy rules defined will be enforced (see below)
- * restart openstack-nova-api and openstack-cinder-api services
+    that the policy rules defined will be enforced (see below)
+ * restart openstack-nova-api, openstack-cinder-api, openstack-glance-api and
+    httpd services
 
 You must apply each files of the `patch` directory for your current branch
-(kilo/liberty) for every concerned service on every concerned server.
+(kilo/liberty/mitaka) for every concerned service on every concerned server.
 
 ```
 ## Patches must be applied from the root directory '/' :
 # cd / 
 # patch -p0 < nova-isolation-same-tenant.patch
 # patch -p0 < cinder-isolation-same-tenant.patch
+# patch -p0 < glance-isolation-same-tenant.patch
 # patch -p0 < horizon-isolation-same-tenant.patch
+# patch -p0 < horizon-isolation-same-tenant_update1.patch
 ```
 You can add `-b` to the patch command to make a backup
 You can add `--dry-run` to the patch command to make a simulation
 
 NOTES : 
- * The patchs are organized in branches you may checkout the kilo/liberty
-   branch to see the patch and policy files
+ * The patchs are organized in branches you may checkout the correct
+    kilo/liberty/mitaka branch to see the patch and policy files
  * Each `policy.json` has its suffixed equivalent `policy.json.orig` to show
-   the differences between the original and modified files
+    the differences between the original and modified files
  * Updates to policy.json files are applied instantly
 
 These patches have been tested on CentOS7 with a package installation.
