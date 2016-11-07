@@ -1,6 +1,6 @@
 diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/api/cinder.py /usr/share/openstack-dashboard/openstack_dashboard/api/cinder.py
---- /usr/share/openstack-dashboard/openstack_dashboard.orig/api/cinder.py	2016-07-13 16:25:09.318233413 +0200
-+++ /usr/share/openstack-dashboard/openstack_dashboard/api/cinder.py	2016-07-13 16:25:50.970230675 +0200
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/api/cinder.py	2016-11-07 10:04:49.475110660 +0100
++++ /usr/share/openstack-dashboard/openstack_dashboard/api/cinder.py	2016-11-07 10:07:15.987106567 +0100
 @@ -82,7 +82,7 @@
                'snapshot_id', 'source_volid', 'attachments', 'tenant_name',
                'consistencygroup_id', 'os-vol-host-attr:host',
@@ -11,8 +11,8 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/api/cinder.py /
      @property
      def is_bootable(self):
 diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/images/images/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/images/images/tables.py
---- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/images/images/tables.py	2016-07-13 16:25:09.680233381 +0200
-+++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/images/images/tables.py	2016-08-03 14:00:20.335797792 +0200
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/images/images/tables.py	2016-11-07 10:04:49.753110712 +0100
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/images/images/tables.py	2016-11-07 10:07:15.987106567 +0100
 @@ -26,6 +26,7 @@
  from horizon.utils.memoized import memoized  # noqa
  
@@ -134,36 +134,81 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
  
  def filter_tenants():
 diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/instances/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/instances/tables.py
---- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/instances/tables.py	2016-07-13 16:25:09.686233381 +0200
-+++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/instances/tables.py	2016-07-13 16:29:56.950237467 +0200
-@@ -222,7 +222,7 @@
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/instances/tables.py	2016-11-07 10:04:49.764110714 +0100
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/instances/tables.py	2016-11-07 10:07:15.987106567 +0100
+@@ -212,17 +212,18 @@
+         self.paused = instance.status == "PAUSED"
+         if self.paused:
+             self.current_present_action = UNPAUSE
+-            policy = (("compute", "compute_extension:admin_actions:unpause"),)
++            policy_rule = (("compute", "compute_extension:admin_actions:unpause"),)
+         else:
+             self.current_present_action = PAUSE
+-            policy = (("compute", "compute_extension:admin_actions:pause"),)
++            policy_rule = (("compute", "compute_extension:admin_actions:pause"),)
+ 
+         has_permission = True
+         policy_check = getattr(settings, "POLICY_CHECK_FUNCTION", None)
          if policy_check:
-             has_permission = policy_check(
-                 policy, request,
+-            has_permission = policy_check(
+-                policy, request,
 -                target={'project_id': getattr(instance, 'tenant_id', None)})
-+                target=instance)
++            has_permission = policy.check(
++                policy_rule, request,
++                {'project_id': getattr(instance, 'tenant_id', None),
++                 'user_id': getattr(instance, 'user_id', None)})
  
          return (has_permission
                  and (instance.status in ACTIVE_STATES or self.paused)
-@@ -290,7 +290,7 @@
+@@ -280,17 +281,18 @@
+         self.suspended = instance.status == "SUSPENDED"
+         if self.suspended:
+             self.current_present_action = RESUME
+-            policy = (("compute", "compute_extension:admin_actions:resume"),)
++            policy_rule = (("compute", "compute_extension:admin_actions:resume"),)
+         else:
+             self.current_present_action = SUSPEND
+-            policy = (("compute", "compute_extension:admin_actions:suspend"),)
++            policy_rule = (("compute", "compute_extension:admin_actions:suspend"),)
+ 
+         has_permission = True
+         policy_check = getattr(settings, "POLICY_CHECK_FUNCTION", None)
          if policy_check:
-             has_permission = policy_check(
-                 policy, request,
+-            has_permission = policy_check(
+-                policy, request,
 -                target={'project_id': getattr(instance, 'tenant_id', None)})
-+                target=instance)
++            has_permission = policy.check(
++                policy_rule, request,
++                {'project_id': getattr(instance, 'tenant_id', None),
++                 'user_id': getattr(instance, 'user_id', None)})
  
          return (has_permission
                  and (instance.status in ACTIVE_STATES or self.suspended)
-@@ -357,7 +357,7 @@
+@@ -347,17 +349,18 @@
+         self.shelved = instance.status == "SHELVED_OFFLOADED"
+         if self.shelved:
+             self.current_present_action = UNSHELVE
+-            policy = (("compute", "compute_extension:unshelve"),)
++            policy_rule = (("compute", "compute_extension:unshelve"),)
+         else:
+             self.current_present_action = SHELVE
+-            policy = (("compute", "compute_extension:shelve"),)
++            policy_rule = (("compute", "compute_extension:shelve"),)
+ 
+         has_permission = True
+         policy_check = getattr(settings, "POLICY_CHECK_FUNCTION", None)
          if policy_check:
-             has_permission = policy_check(
-                 policy, request,
+-            has_permission = policy_check(
+-                policy, request,
 -                target={'project_id': getattr(instance, 'tenant_id', None)})
-+                target=instance)
++            has_permission = policy.check(
++                policy_rule, request,
++                {'project_id': getattr(instance, 'tenant_id', None),
++                 'user_id': getattr(instance, 'user_id', None)})
  
          return (has_permission
                  and (instance.status in ACTIVE_STATES or self.shelved)
-@@ -940,6 +940,7 @@
+@@ -940,6 +943,7 @@
      verbose_name = _("Detach Interface")
      classes = ("btn-confirm", "ajax-modal")
      url = "horizon:project:instances:detach_interface"
@@ -172,8 +217,8 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
      def allowed(self, request, instance):
          return ((instance.status in ACTIVE_STATES
 diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/snapshots/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/snapshots/tables.py
---- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/snapshots/tables.py	2016-07-13 16:25:09.777233373 +0200
-+++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/snapshots/tables.py	2016-08-03 14:01:18.814795072 +0200
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/snapshots/tables.py	2016-11-07 10:04:49.854110731 +0100
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/snapshots/tables.py	2016-11-07 10:07:15.987106567 +0100
 @@ -96,6 +96,22 @@
      def delete(self, request, obj_id):
          api.cinder.volume_snapshot_delete(request, obj_id)
@@ -237,8 +282,8 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
  
  
 diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/volumes/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/volumes/tables.py
---- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/volumes/tables.py	2016-07-13 16:25:09.791233372 +0200
-+++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/volumes/tables.py	2016-08-03 14:02:59.919798299 +0200
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/volumes/tables.py	2016-11-07 10:04:49.863110732 +0100
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/volumes/tables.py	2016-11-07 10:07:15.987106567 +0100
 @@ -38,7 +38,8 @@
  
  
