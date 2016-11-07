@@ -1,13 +1,13 @@
 diff -ur /usr/lib/python2.7/site-packages/cinder.orig/transfer/api.py /usr/lib/python2.7/site-packages/cinder/transfer/api.py
---- /usr/lib/python2.7/site-packages/cinder.orig/transfer/api.py	2016-07-13 15:52:32.447629258 +0200
-+++ /usr/lib/python2.7/site-packages/cinder/transfer/api.py	2016-07-13 15:55:44.488260810 +0200
+--- /usr/lib/python2.7/site-packages/cinder.orig/transfer/api.py	2016-11-07 15:07:59.733321887 +0100
++++ /usr/lib/python2.7/site-packages/cinder/transfer/api.py	2016-11-07 15:09:10.848993899 +0100
 @@ -62,8 +62,8 @@
  
      def delete(self, context, transfer_id):
          """Make the RPC call to delete a volume transfer."""
 -        volume_api.check_policy(context, 'delete_transfer')
          transfer = self.db.transfer_get(context, transfer_id)
-+        volume_api.check_policy(context, 'delete_transfer', target=transfer)
++        volume_api.check_policy(context, 'delete_transfer', transfer)
  
          volume_ref = self.db.volume_get(context, transfer.volume_id)
          volume_utils.notify_about_volume_usage(context, volume_ref,
@@ -18,14 +18,14 @@ diff -ur /usr/lib/python2.7/site-packages/cinder.orig/transfer/api.py /usr/lib/p
 -        volume_api.check_policy(context, 'create_transfer')
 -        LOG.info(_LI("Generating transfer record for volume %s"), volume_id)
          volume_ref = self.db.volume_get(context, volume_id)
-+        volume_api.check_policy(context, 'create_transfer', target=volume_ref)
++        volume_api.check_policy(context, 'create_transfer', volume_ref)
 +        LOG.info(_LI("Generating transfer record for volume %s"), volume_id)
          if volume_ref['status'] != "available":
              raise exception.InvalidVolume(reason=_("status must be available"))
  
 diff -ur /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py /usr/lib/python2.7/site-packages/cinder/volume/api.py
---- /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py	2016-07-13 15:52:32.456629203 +0200
-+++ /usr/lib/python2.7/site-packages/cinder/volume/api.py	2016-07-13 15:59:06.117222679 +0200
+--- /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py	2016-11-07 15:07:59.734321187 +0100
++++ /usr/lib/python2.7/site-packages/cinder/volume/api.py	2016-11-07 15:09:10.847994299 +0100
 @@ -213,7 +213,10 @@
                 source_replica=None, consistencygroup=None,
                 cgsnapshot=None, multiattach=False, source_cg=None):
