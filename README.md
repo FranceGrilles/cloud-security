@@ -32,7 +32,6 @@ You must apply each files of the `patch` directory for your current branch
 # patch -p0 < cinder-isolation-same-tenant.patch
 # patch -p0 < glance-isolation-same-tenant.patch
 # patch -p0 < horizon-isolation-same-tenant.patch
-# patch -p0 < horizon-isolation-same-tenant_update1.patch
 ```
 You can add `-b` to the patch command to make a backup
 You can add `--dry-run` to the patch command to make a simulation
@@ -45,5 +44,15 @@ NOTES :
  * Updates to policy.json files are applied instantly
 
 These patches have been tested on CentOS7 with a package installation.
+
+## BugFix : Important
+
+The repository is updated with full patches, including bugfixes.
+For those who have already patched their installation, you must also apply :
+
+```
+patch -p0 < cinder-update_1.patch
+patch -p0 < horizon-update_1.patch
+```
 
 If you have any issue, feel free to leave a comment here !
