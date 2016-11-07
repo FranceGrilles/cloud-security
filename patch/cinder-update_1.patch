@@ -1,0 +1,21 @@
+diff -ur /usr/lib/python2.7/site-packages/cinder.orig/transfer/api.py /usr/lib/python2.7/site-packages/cinder/transfer/api.py
+--- /usr/lib/python2.7/site-packages/cinder.orig/transfer/api.py	2016-11-07 15:03:23.326000000 +0100
++++ /usr/lib/python2.7/site-packages/cinder/transfer/api.py	2016-11-07 15:03:58.379706721 +0100
+@@ -63,7 +63,7 @@
+     def delete(self, context, transfer_id):
+         """Make the RPC call to delete a volume transfer."""
+         transfer = self.db.transfer_get(context, transfer_id)
+-        volume_api.check_policy(context, 'delete_transfer', target=transfer)
++        volume_api.check_policy(context, 'delete_transfer', transfer)
+ 
+         volume_ref = self.db.volume_get(context, transfer.volume_id)
+         volume_utils.notify_about_volume_usage(context, volume_ref,
+@@ -112,7 +112,7 @@
+     def create(self, context, volume_id, display_name):
+         """Creates an entry in the transfers table."""
+         volume_ref = self.db.volume_get(context, volume_id)
+-        volume_api.check_policy(context, 'create_transfer', target=volume_ref)
++        volume_api.check_policy(context, 'create_transfer', volume_ref)
+         LOG.info(_LI("Generating transfer record for volume %s"), volume_id)
+         if volume_ref['status'] != "available":
+             raise exception.InvalidVolume(reason=_("status must be available"))

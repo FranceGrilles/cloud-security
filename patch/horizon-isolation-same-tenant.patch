@@ -1,0 +1,320 @@
+diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/api/cinder.py /usr/share/openstack-dashboard/openstack_dashboard/api/cinder.py
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/api/cinder.py	2016-11-07 10:04:49.475110660 +0100
++++ /usr/share/openstack-dashboard/openstack_dashboard/api/cinder.py	2016-11-07 10:07:15.987106567 +0100
+@@ -82,7 +82,7 @@
+               'snapshot_id', 'source_volid', 'attachments', 'tenant_name',
+               'consistencygroup_id', 'os-vol-host-attr:host',
+               'os-vol-tenant-attr:tenant_id', 'metadata',
+-              'volume_image_metadata', 'encrypted', 'transfer']
++              'volume_image_metadata', 'encrypted', 'transfer', 'user_id']
+ 
+     @property
+     def is_bootable(self):
+diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/images/images/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/images/images/tables.py
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/images/images/tables.py	2016-11-07 10:04:49.753110712 +0100
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/images/images/tables.py	2016-11-07 10:07:15.987106567 +0100
+@@ -26,6 +26,7 @@
+ from horizon.utils.memoized import memoized  # noqa
+ 
+ from openstack_dashboard import api
++from openstack_dashboard import policy
+ 
+ NOT_LAUNCHABLE_FORMATS = ['aki', 'ari']
+ 
+@@ -67,6 +68,18 @@
+         kwargs['preempt'] = True
+         super(LaunchImage, self).__init__(attrs, **kwargs)
+ 
++    def allowed(self, request, image=None):
++        if image and 'user_id' in image.properties.keys() and \
++            image.properties['image_type'] == "snapshot":
++            project_id = request.user.tenant_id
++            user_id = image.properties['user_id']
++            _allowed = policy.check(
++                        (("compute", "compute:snapshot"),), 
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
++            return _allowed
++        return True
++
+     def get_link_url(self, datum):
+         imageId = self.table.get_object_id(datum)
+         url = reverse(self.url)
+@@ -100,14 +113,22 @@
+             count
+         )
+ 
+-    policy_rules = (("image", "delete_image"),)
+-
+     def allowed(self, request, image=None):
+         # Protected images can not be deleted.
+         if image and image.protected:
+             return False
++        if image and 'user_id' in image.properties.keys():
++            project_id = request.user.tenant_id
++            user_id = image.properties['user_id']
++            _allowed = policy.check(
++                        (("image", "delete_image"),),
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
++        else:
++            _allowed = True
++    
+         if image:
+-            return image.owner == request.user.tenant_id
++            return _allowed and image.owner == request.user.project_id
+         # Return True to allow table-level bulk delete action to appear.
+         return True
+ 
+@@ -133,9 +154,21 @@
+     policy_rules = (("image", "modify_image"),)
+ 
+     def allowed(self, request, image=None):
+-        if image:
+-            return image.status in ("active",) and \
+-                image.owner == request.user.tenant_id
++        if image and 'user_id' in image.properties.keys():
++            project_id = request.user.tenant_id
++            user_id = image.properties['user_id']
++            _allowed = policy.check(
++                        (("image", "modify_image"),),
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
++            if 'image_type' in image.properties.keys():
++                _snap = policy.check(
++                        (("image", "use_snapshot"),),
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
++            else:
++                _snap = True
++            return image.status in ("active",) and _allowed and _snap
+         # We don't have bulk editing, so if there isn't an image that's
+         # authorized, don't allow the action.
+         return False
+@@ -157,7 +190,17 @@
+     def allowed(self, request, image=None):
+         if (image and image.container_format not in NOT_LAUNCHABLE_FORMATS
+                 and api.cinder.is_volume_service_enabled(request)):
+-            return image.status == "active"
++            if 'image_type' in image.properties.keys() and \
++                image.properties['image_type'] == "snapshot":
++                project_id = request.user.tenant_id
++                user_id = image.properties['user_id']
++                _allowed = policy.check(
++                            (("volume", "volume:create_snapshot"),),
++                            request,
++                            {"project_id": project_id, "user_id": user_id})
++            else:
++                _allowed = True
++            return image.status == "active" and _allowed
+         return False
+ 
+ 
+@@ -179,10 +222,21 @@
+         return "javascript:void(0);"
+ 
+     def allowed(self, request, image=None):
++        if 'image_type' in image.properties.keys() and \
++            image.properties['image_type'] == "snapshot":
++            project_id = request.user.tenant_id
++            user_id = image.properties['user_id']
++            _allowed = policy.check(
++                        (("image", "use_snapshot"),),
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
++        else:
++            _allowed = True
+         return (api.glance.VERSIONS.active >= 2 and
+                 image and
+                 image.status == "active" and
+-                image.owner == request.user.project_id)
++                image.owner == request.user.project_id and 
++                _allowed)
+ 
+ 
+ def filter_tenants():
+diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/instances/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/instances/tables.py
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/instances/tables.py	2016-11-07 10:04:49.764110714 +0100
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/instances/tables.py	2016-11-07 10:07:15.987106567 +0100
+@@ -212,17 +212,18 @@
+         self.paused = instance.status == "PAUSED"
+         if self.paused:
+             self.current_present_action = UNPAUSE
+-            policy = (("compute", "compute_extension:admin_actions:unpause"),)
++            policy_rule = (("compute", "compute_extension:admin_actions:unpause"),)
+         else:
+             self.current_present_action = PAUSE
+-            policy = (("compute", "compute_extension:admin_actions:pause"),)
++            policy_rule = (("compute", "compute_extension:admin_actions:pause"),)
+ 
+         has_permission = True
+         policy_check = getattr(settings, "POLICY_CHECK_FUNCTION", None)
+         if policy_check:
+-            has_permission = policy_check(
+-                policy, request,
+-                target={'project_id': getattr(instance, 'tenant_id', None)})
++            has_permission = policy.check(
++                policy_rule, request,
++                {'project_id': getattr(instance, 'tenant_id', None),
++                 'user_id': getattr(instance, 'user_id', None)})
+ 
+         return (has_permission
+                 and (instance.status in ACTIVE_STATES or self.paused)
+@@ -280,17 +281,18 @@
+         self.suspended = instance.status == "SUSPENDED"
+         if self.suspended:
+             self.current_present_action = RESUME
+-            policy = (("compute", "compute_extension:admin_actions:resume"),)
++            policy_rule = (("compute", "compute_extension:admin_actions:resume"),)
+         else:
+             self.current_present_action = SUSPEND
+-            policy = (("compute", "compute_extension:admin_actions:suspend"),)
++            policy_rule = (("compute", "compute_extension:admin_actions:suspend"),)
+ 
+         has_permission = True
+         policy_check = getattr(settings, "POLICY_CHECK_FUNCTION", None)
+         if policy_check:
+-            has_permission = policy_check(
+-                policy, request,
+-                target={'project_id': getattr(instance, 'tenant_id', None)})
++            has_permission = policy.check(
++                policy_rule, request,
++                {'project_id': getattr(instance, 'tenant_id', None),
++                 'user_id': getattr(instance, 'user_id', None)})
+ 
+         return (has_permission
+                 and (instance.status in ACTIVE_STATES or self.suspended)
+@@ -347,17 +349,18 @@
+         self.shelved = instance.status == "SHELVED_OFFLOADED"
+         if self.shelved:
+             self.current_present_action = UNSHELVE
+-            policy = (("compute", "compute_extension:unshelve"),)
++            policy_rule = (("compute", "compute_extension:unshelve"),)
+         else:
+             self.current_present_action = SHELVE
+-            policy = (("compute", "compute_extension:shelve"),)
++            policy_rule = (("compute", "compute_extension:shelve"),)
+ 
+         has_permission = True
+         policy_check = getattr(settings, "POLICY_CHECK_FUNCTION", None)
+         if policy_check:
+-            has_permission = policy_check(
+-                policy, request,
+-                target={'project_id': getattr(instance, 'tenant_id', None)})
++            has_permission = policy.check(
++                policy_rule, request,
++                {'project_id': getattr(instance, 'tenant_id', None),
++                 'user_id': getattr(instance, 'user_id', None)})
+ 
+         return (has_permission
+                 and (instance.status in ACTIVE_STATES or self.shelved)
+@@ -940,6 +943,7 @@
+     verbose_name = _("Detach Interface")
+     classes = ("btn-confirm", "ajax-modal")
+     url = "horizon:project:instances:detach_interface"
++    policy_rules = (("compute", "compute_extension:detach_interfaces"),)
+ 
+     def allowed(self, request, instance):
+         return ((instance.status in ACTIVE_STATES
+diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/snapshots/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/snapshots/tables.py
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/snapshots/tables.py	2016-11-07 10:04:49.854110731 +0100
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/snapshots/tables.py	2016-11-07 10:07:15.987106567 +0100
+@@ -96,6 +96,22 @@
+     def delete(self, request, obj_id):
+         api.cinder.volume_snapshot_delete(request, obj_id)
+ 
++    def allowed(self, request, snapshot):
++        # If has a snapshot, get the volume owner
++        if snapshot:
++            volume_id = getattr(snapshot, "volume_id", None)
++            volume = cinder.volume_get(request, volume_id)
++            project_id = getattr(volume, "os-vol-tenant-attr:tenant_id", None)
++            user_id = getattr(volume, "user_id", None)
++            _allowed = policy.check(
++                        (("volume", "volume:delete_snapshot"),),
++                        request,
++                        {"project_id": project_id, "user_id": user_id})
++            return _allowed
++        else:
++            # To display the 'Delete' button (no snapshot provided)
++            return True
++
+ 
+ class EditVolumeSnapshot(policy.PolicyTargetMixin, tables.LinkAction):
+     name = "edit"
+@@ -105,10 +121,19 @@
+     icon = "pencil"
+     policy_rules = (("volume", "volume:update_snapshot"),)
+     policy_target_attrs = (("project_id",
+-                            'os-extended-snapshot-attributes:project_id'),)
++                            'os-extended-snapshot-attributes:project_id'),
++                            ("user_id", 'user_id'))
+ 
+     def allowed(self, request, snapshot=None):
+-        return snapshot.status == "available"
++        volume_id = getattr(snapshot, "volume_id", None)
++        volume = cinder.volume_get(request, volume_id)
++        project_id = getattr(volume, "os-vol-tenant-attr:tenant_id", None)
++        user_id = getattr(volume, "user_id", None)
++        _allowed = policy.check(
++                    (("volume", "volume:update_snapshot"),),
++                    request,
++                    {"project_id": project_id, "user_id": user_id})
++        return snapshot.status == "available" and _allowed
+ 
+ 
+ class CreateVolumeFromSnapshot(tables.LinkAction):
+@@ -125,8 +150,15 @@
+         return "?".join([base_url, params])
+ 
+     def allowed(self, request, volume=None):
++        _volume = cinder.volume_get(request, volume.volume_id)
++        project_id = getattr(_volume, "os-vol-tenant-attr:tenant_id", None)
++        user_id = getattr(_volume, "user_id", None)
++        _allowed = policy.check(
++                    (("volume", "volume:update_snapshot"),),
++                    request,
++                    {"project_id": project_id, "user_id": user_id})
+         if volume and cinder.is_volume_service_enabled(request):
+-            return volume.status == "available"
++            return volume.status == "available" and _allowed
+         return False
+ 
+ 
+diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/volumes/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/volumes/tables.py
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/volumes/tables.py	2016-11-07 10:04:49.863110732 +0100
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/volumes/tables.py	2016-11-07 10:07:15.987106567 +0100
+@@ -38,7 +38,8 @@
+ 
+ 
+ class VolumePolicyTargetMixin(policy.PolicyTargetMixin):
+-    policy_target_attrs = (("project_id", 'os-vol-tenant-attr:tenant_id'),)
++    policy_target_attrs = (("project_id", 'os-vol-tenant-attr:tenant_id'),
++                           ("user_id", 'user_id'))
+ 
+ 
+ class LaunchVolume(tables.LinkAction):
+@@ -174,14 +175,15 @@
+     def allowed(self, request, volume=None):
+         if volume:
+             project_id = getattr(volume, "os-vol-tenant-attr:tenant_id", None)
+-            attach_allowed = \
+-                policy.check((("compute", "compute:attach_volume"),),
+-                             request,
+-                             {"project_id": project_id})
+-            detach_allowed = \
+-                policy.check((("compute", "compute:detach_volume"),),
+-                             request,
+-                             {"project_id": project_id})
++            user_id = getattr(volume, "user_id", None)
++            attach_allowed = policy.check(
++                                (("compute", "compute:attach_volume"),),
++                                request,
++                                {"project_id": project_id, "user_id": user_id})
++            detach_allowed = policy.check(
++                                (("compute", "compute:detach_volume"),),
++                                request,
++                                {"project_id": project_id, "user_id": user_id})
+ 
+             if attach_allowed or detach_allowed:
+                 return volume.status in ("available", "in-use")
