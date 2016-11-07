@@ -1,6 +1,6 @@
 diff -ur /usr/lib/python2.7/site-packages/cinder.orig/transfer/api.py /usr/lib/python2.7/site-packages/cinder/transfer/api.py
---- /usr/lib/python2.7/site-packages/cinder.orig/transfer/api.py	2016-11-07 15:07:59.733321887 +0100
-+++ /usr/lib/python2.7/site-packages/cinder/transfer/api.py	2016-11-07 15:09:10.848993899 +0100
+--- /usr/lib/python2.7/site-packages/cinder.orig/transfer/api.py	2016-11-07 16:40:56.356097500 +0100
++++ /usr/lib/python2.7/site-packages/cinder/transfer/api.py	2016-11-07 16:53:04.305992700 +0100
 @@ -62,8 +62,8 @@
  
      def delete(self, context, transfer_id):
@@ -24,9 +24,9 @@ diff -ur /usr/lib/python2.7/site-packages/cinder.orig/transfer/api.py /usr/lib/p
              raise exception.InvalidVolume(reason=_("status must be available"))
  
 diff -ur /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py /usr/lib/python2.7/site-packages/cinder/volume/api.py
---- /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py	2016-11-07 15:07:59.734321187 +0100
-+++ /usr/lib/python2.7/site-packages/cinder/volume/api.py	2016-11-07 15:09:10.847994299 +0100
-@@ -213,7 +213,10 @@
+--- /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py	2016-11-07 16:40:56.359097800 +0100
++++ /usr/lib/python2.7/site-packages/cinder/volume/api.py	2016-11-07 16:57:02.885655613 +0100
+@@ -213,7 +213,11 @@
                 source_replica=None, consistencygroup=None,
                 cgsnapshot=None, multiattach=False, source_cg=None):
  
@@ -35,21 +35,21 @@ diff -ur /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py /usr/lib/pyt
 +            check_policy(context, 'update_snapshot', snapshot.volume_id)
 +        else:
 +            check_policy(context, 'create')
++
  
          # NOTE(jdg): we can have a create without size if we're
          # doing a create from snap or volume.  Currently
-@@ -524,6 +527,10 @@
+@@ -524,6 +528,9 @@
  
      def get_snapshot(self, context, snapshot_id):
          snapshot = objects.Snapshot.get_by_id(context, snapshot_id)
 +        rv = self.db.volume_get(context, snapshot.volume_id)
 +        volume = dict(rv)
 +        check_policy(context, 'get_snapshot', volume)
-+
  
          # FIXME(jdg): The objects don't have the db name entries
          # so build the resource tag manually for now.
-@@ -930,9 +937,11 @@
+@@ -935,9 +942,11 @@
                   resource=result)
          return result
  
@@ -62,7 +62,7 @@ diff -ur /usr/lib/python2.7/site-packages/cinder.orig/volume/api.py /usr/lib/pyt
          # Build required conditions for conditional update
          expected = {'cgsnapshot_id': None}
          # If not force deleting we have status conditions
-@@ -955,8 +964,10 @@
+@@ -960,8 +969,10 @@
          LOG.info(_LI("Snapshot delete request issued successfully."),
                   resource=snapshot)
  
