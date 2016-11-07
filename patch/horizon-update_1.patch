@@ -1,0 +1,75 @@
+diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/instances/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/instances/tables.py
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/instances/tables.py	2016-11-03 17:13:10.653498316 +0100
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/instances/tables.py	2016-11-03 17:22:59.649614700 +0100
+@@ -215,17 +215,18 @@
+         self.paused = instance.status == "PAUSED"
+         if self.paused:
+             self.current_present_action = UNPAUSE
+-            policy = (("compute", "compute_extension:admin_actions:unpause"),)
++            policy_rule = (("compute", "compute_extension:admin_actions:unpause"),)
+         else:
+             self.current_present_action = PAUSE
+-            policy = (("compute", "compute_extension:admin_actions:pause"),)
++            policy_rule = (("compute", "compute_extension:admin_actions:pause"),)
+ 
+         has_permission = True
+         policy_check = getattr(settings, "POLICY_CHECK_FUNCTION", None)
+         if policy_check:
+-            has_permission = policy_check(
+-                policy, request,
+-                target=instance)
++            has_permission = policy.check(
++                policy_rule, request,
++                {'project_id': getattr(instance, 'tenant_id', None),
++                 'user_id': getattr(instance, 'user_id', None)})
+ 
+         return (has_permission
+                 and (instance.status in ACTIVE_STATES or self.paused)
+@@ -285,17 +286,18 @@
+         self.suspended = instance.status == "SUSPENDED"
+         if self.suspended:
+             self.current_present_action = RESUME
+-            policy = (("compute", "compute_extension:admin_actions:resume"),)
++            policy_rule = (("compute", "compute_extension:admin_actions:resume"),)
+         else:
+             self.current_present_action = SUSPEND
+-            policy = (("compute", "compute_extension:admin_actions:suspend"),)
++            policy_rule = (("compute", "compute_extension:admin_actions:suspend"),)
+ 
+         has_permission = True
+         policy_check = getattr(settings, "POLICY_CHECK_FUNCTION", None)
+         if policy_check:
+-            has_permission = policy_check(
+-                policy, request,
+-                target=instance)
++            has_permission = policy.check(
++                policy_rule, request,
++                {'project_id': getattr(instance, 'tenant_id', None),
++                 'user_id': getattr(instance, 'user_id', None)})
+ 
+         return (has_permission
+                 and (instance.status in ACTIVE_STATES or self.suspended)
+@@ -353,17 +355,18 @@
+         self.shelved = instance.status == "SHELVED_OFFLOADED"
+         if self.shelved:
+             self.current_present_action = UNSHELVE
+-            policy = (("compute", "compute_extension:unshelve"),)
++            policy_rule = (("compute", "compute_extension:unshelve"),)
+         else:
+             self.current_present_action = SHELVE
+-            policy = (("compute", "compute_extension:shelve"),)
++            policy_rule = (("compute", "compute_extension:shelve"),)
+ 
+         has_permission = True
+         policy_check = getattr(settings, "POLICY_CHECK_FUNCTION", None)
+         if policy_check:
+-            has_permission = policy_check(
+-                policy, request,
+-                target=instance)
++            has_permission = policy.check(
++                policy_rule, request,
++                {'project_id': getattr(instance, 'tenant_id', None),
++                 'user_id': getattr(instance, 'user_id', None)})
+ 
+         return (has_permission
+                 and (instance.status in ACTIVE_STATES or self.shelved)

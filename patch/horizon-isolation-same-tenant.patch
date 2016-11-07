@@ -1,6 +1,6 @@
 diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/api/cinder.py /usr/share/openstack-dashboard/openstack_dashboard/api/cinder.py
---- /usr/share/openstack-dashboard/openstack_dashboard.orig/api/cinder.py	2016-05-27 10:39:48.150871292 +0200
-+++ /usr/share/openstack-dashboard/openstack_dashboard/api/cinder.py	2016-05-30 10:32:32.740525816 +0200
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/api/cinder.py	2016-11-07 14:12:53.949867099 +0100
++++ /usr/share/openstack-dashboard/openstack_dashboard/api/cinder.py	2016-11-07 14:14:31.068333699 +0100
 @@ -80,7 +80,8 @@
                'volume_type', 'availability_zone', 'imageRef', 'bootable',
                'snapshot_id', 'source_volid', 'attachments', 'tenant_name',
@@ -11,168 +11,9 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/api/cinder.py /
  
      @property
      def is_bootable(self):
-diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/instances/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/instances/tables.py
---- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/instances/tables.py	2016-05-27 10:39:48.806871301 +0200
-+++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/instances/tables.py	2016-05-27 11:37:27.839878202 +0200
-@@ -173,6 +173,8 @@
- class TogglePause(tables.BatchAction):
-     name = "pause"
-     icon = "pause"
-+    policy_rules = (("compute", "compute_extension:admin_actions:pause"),
-+                    ("compute", "compute_extension:admin_actions:unpause"))
- 
-     @staticmethod
-     def action_present(count):
-@@ -223,7 +225,7 @@
-         if policy_check:
-             has_permission = policy_check(
-                 policy, request,
--                target={'project_id': getattr(instance, 'tenant_id', None)})
-+                target=instance)
- 
-         return (has_permission
-                 and (instance.status in ACTIVE_STATES or self.paused)
-@@ -241,6 +243,8 @@
- class ToggleSuspend(tables.BatchAction):
-     name = "suspend"
-     classes = ("btn-suspend",)
-+    policy_rule = (("compute", "compute_extension:admin_actions:suspend"),
-+                    ("compute", "compute_extension:admin_actions:resume"))
- 
-     @staticmethod
-     def action_present(count):
-@@ -291,7 +295,7 @@
-         if policy_check:
-             has_permission = policy_check(
-                 policy, request,
--                target={'project_id': getattr(instance, 'tenant_id', None)})
-+                target=instance)
- 
-         return (has_permission
-                 and (instance.status in ACTIVE_STATES or self.suspended)
-@@ -309,6 +313,7 @@
- class ToggleShelve(tables.BatchAction):
-     name = "shelve"
-     icon = "shelve"
-+    policy_rules = (("compute", "compute:shelve"),)
- 
-     @staticmethod
-     def action_present(count):
-@@ -358,7 +363,7 @@
-         if policy_check:
-             has_permission = policy_check(
-                 policy, request,
--                target={'project_id': getattr(instance, 'tenant_id', None)})
-+                target=instance)
- 
-         return (has_permission
-                 and (instance.status in ACTIVE_STATES or self.shelved)
-@@ -910,6 +915,7 @@
-     verbose_name = _("Detach Interface")
-     classes = ("btn-confirm", "ajax-modal")
-     url = "horizon:project:instances:detach_interface"
-+    policy_rules = (("compute", "compute_extension:detach_interfaces"),)
- 
-     def allowed(self, request, instance):
-         return ((instance.status in ACTIVE_STATES
-diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/snapshots/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/snapshots/tables.py
---- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/snapshots/tables.py	2016-05-27 10:39:48.934871303 +0200
-+++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/snapshots/tables.py	2016-05-30 11:30:37.959502870 +0200
-@@ -73,6 +73,21 @@
-     def delete(self, request, obj_id):
-         api.cinder.volume_snapshot_delete(request, obj_id)
- 
-+    def allowed(self, request, snapshot):
-+        # If has a snapshot, get the volume owner
-+        if snapshot:
-+            volume_id = getattr(snapshot, "volume_id", None)
-+            volume = cinder.volume_get(request, volume_id)
-+            project_id = getattr(volume, "os-vol-tenant-attr:tenant_id", None)
-+            user_id = getattr(volume, "user_id", None)
-+            _allowed = policy.check((("volume", "volume:delete_snapshot"),),
-+                                    request,
-+                                    {"project_id": project_id, "user_id": user_id})
-+            return _allowed
-+        else:
-+            # To display the 'Delete' button (no snapshot provided)
-+            return True
-+
- 
- class EditVolumeSnapshot(policy.PolicyTargetMixin, tables.LinkAction):
-     name = "edit"
-@@ -82,10 +97,19 @@
-     icon = "pencil"
-     policy_rules = (("volume", "volume:update_snapshot"),)
-     policy_target_attrs = (("project_id",
--                            'os-extended-snapshot-attributes:project_id'),)
-+                            'os-extended-snapshot-attributes:project_id'),
-+                           ("user_id", 'user_id'))
- 
-     def allowed(self, request, snapshot=None):
--        return snapshot.status == "available"
-+        volume_id = getattr(snapshot, "volume_id", None)
-+        volume = cinder.volume_get(request, volume_id)
-+        project_id = getattr(volume, "os-vol-tenant-attr:tenant_id", None)
-+        user_id = getattr(volume, "user_id", None)
-+        _allowed = \
-+            policy.check((("volume", "volume:update_snapshot"),),
-+                         request,
-+                         {"project_id": project_id, "user_id": user_id})
-+        return snapshot.status == "available" and _allowed
- 
- 
- class CreateVolumeFromSnapshot(tables.LinkAction):
-@@ -102,8 +126,15 @@
-         return "?".join([base_url, params])
- 
-     def allowed(self, request, volume=None):
-+        _volume = cinder.volume_get(request, volume.volume_id)
-+        project_id = getattr(_volume, "os-vol-tenant-attr:tenant_id", None)
-+        user_id = getattr(_volume, "user_id", None)
-+        _allowed = \
-+            policy.check((("volume", "volume:update_snapshot"),),
-+                         request,
-+                         {"project_id": project_id, "user_id": user_id})
-         if volume and base.is_service_enabled(request, 'volume'):
--            return volume.status == "available"
-+            return volume.status == "available" and _allowed
-         return False
- 
- 
-diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/volumes/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/volumes/tables.py
---- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/volumes/tables.py	2016-05-27 10:39:48.972871304 +0200
-+++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/volumes/tables.py	2016-05-30 11:14:29.928495534 +0200
-@@ -37,7 +37,8 @@
- 
- 
- class VolumePolicyTargetMixin(policy.PolicyTargetMixin):
--    policy_target_attrs = (("project_id", 'os-vol-tenant-attr:tenant_id'),)
-+    policy_target_attrs = (("project_id", 'os-vol-tenant-attr:tenant_id'),
-+                           ("user_id", 'user_id'))
- 
- 
- class LaunchVolume(tables.LinkAction):
-@@ -149,14 +150,15 @@
-     def allowed(self, request, volume=None):
-         if volume:
-             project_id = getattr(volume, "os-vol-tenant-attr:tenant_id", None)
-+            user_id = getattr(volume, "user_id", None)
-             attach_allowed = \
-                 policy.check((("compute", "compute:attach_volume"),),
-                              request,
--                             {"project_id": project_id})
-+                             {"project_id": project_id, "user_id": user_id})
-             detach_allowed = \
-                 policy.check((("compute", "compute:detach_volume"),),
-                              request,
--                             {"project_id": project_id})
-+                             {"project_id": project_id, "user_id": user_id})
- 
-             if attach_allowed or detach_allowed:
-                 return volume.status in ("available", "in-use")
 diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/images/images/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/images/images/tables.py
---- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/images/images/tables.py	2016-08-05 15:44:14.602371389 +0200
-+++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/images/images/tables.py	2016-08-05 15:48:54.726296451 +0200
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/images/images/tables.py	2016-11-07 14:12:54.632567499 +0100
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/images/images/tables.py	2016-11-07 14:14:31.071332199 +0100
 @@ -26,6 +26,7 @@
  from horizon.utils.memoized import memoized  # noqa
  
@@ -293,3 +134,207 @@ diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/proj
  
  
  def filter_tenants():
+diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/instances/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/instances/tables.py
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/instances/tables.py	2016-11-07 14:12:54.663508599 +0100
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/instances/tables.py	2016-11-07 14:14:31.071332199 +0100
+@@ -173,6 +173,8 @@
+ class TogglePause(tables.BatchAction):
+     name = "pause"
+     icon = "pause"
++    policy_rules = (("compute", "compute_extension:admin_actions:pause"),
++                    ("compute", "compute_extension:admin_actions:unpause"))
+ 
+     @staticmethod
+     def action_present(count):
+@@ -213,17 +215,18 @@
+         self.paused = instance.status == "PAUSED"
+         if self.paused:
+             self.current_present_action = UNPAUSE
+-            policy = (("compute", "compute_extension:admin_actions:unpause"),)
++            policy_rule = (("compute", "compute_extension:admin_actions:unpause"),)
+         else:
+             self.current_present_action = PAUSE
+-            policy = (("compute", "compute_extension:admin_actions:pause"),)
++            policy_rule = (("compute", "compute_extension:admin_actions:pause"),)
+ 
+         has_permission = True
+         policy_check = getattr(settings, "POLICY_CHECK_FUNCTION", None)
+         if policy_check:
+-            has_permission = policy_check(
+-                policy, request,
+-                target={'project_id': getattr(instance, 'tenant_id', None)})
++            has_permission = policy.check(
++                policy_rule, request,
++                {'project_id': getattr(instance, 'tenant_id', None),
++                 'user_id': getattr(instance, 'user_id', None)})
+ 
+         return (has_permission
+                 and (instance.status in ACTIVE_STATES or self.paused)
+@@ -241,6 +244,8 @@
+ class ToggleSuspend(tables.BatchAction):
+     name = "suspend"
+     classes = ("btn-suspend",)
++    policy_rule = (("compute", "compute_extension:admin_actions:suspend"),
++                    ("compute", "compute_extension:admin_actions:resume"))
+ 
+     @staticmethod
+     def action_present(count):
+@@ -281,17 +286,18 @@
+         self.suspended = instance.status == "SUSPENDED"
+         if self.suspended:
+             self.current_present_action = RESUME
+-            policy = (("compute", "compute_extension:admin_actions:resume"),)
++            policy_rule = (("compute", "compute_extension:admin_actions:resume"),)
+         else:
+             self.current_present_action = SUSPEND
+-            policy = (("compute", "compute_extension:admin_actions:suspend"),)
++            policy_rule = (("compute", "compute_extension:admin_actions:suspend"),)
+ 
+         has_permission = True
+         policy_check = getattr(settings, "POLICY_CHECK_FUNCTION", None)
+         if policy_check:
+-            has_permission = policy_check(
+-                policy, request,
+-                target={'project_id': getattr(instance, 'tenant_id', None)})
++            has_permission = policy.check(
++                policy_rule, request,
++                {'project_id': getattr(instance, 'tenant_id', None),
++                 'user_id': getattr(instance, 'user_id', None)})
+ 
+         return (has_permission
+                 and (instance.status in ACTIVE_STATES or self.suspended)
+@@ -309,6 +315,7 @@
+ class ToggleShelve(tables.BatchAction):
+     name = "shelve"
+     icon = "shelve"
++    policy_rules = (("compute", "compute:shelve"),)
+ 
+     @staticmethod
+     def action_present(count):
+@@ -348,17 +355,18 @@
+         self.shelved = instance.status == "SHELVED_OFFLOADED"
+         if self.shelved:
+             self.current_present_action = UNSHELVE
+-            policy = (("compute", "compute_extension:unshelve"),)
++            policy_rule = (("compute", "compute_extension:unshelve"),)
+         else:
+             self.current_present_action = SHELVE
+-            policy = (("compute", "compute_extension:shelve"),)
++            policy_rule = (("compute", "compute_extension:shelve"),)
+ 
+         has_permission = True
+         policy_check = getattr(settings, "POLICY_CHECK_FUNCTION", None)
+         if policy_check:
+-            has_permission = policy_check(
+-                policy, request,
+-                target={'project_id': getattr(instance, 'tenant_id', None)})
++            has_permission = policy.check(
++                policy_rule, request,
++                {'project_id': getattr(instance, 'tenant_id', None),
++                 'user_id': getattr(instance, 'user_id', None)})
+ 
+         return (has_permission
+                 and (instance.status in ACTIVE_STATES or self.shelved)
+@@ -910,6 +918,7 @@
+     verbose_name = _("Detach Interface")
+     classes = ("btn-confirm", "ajax-modal")
+     url = "horizon:project:instances:detach_interface"
++    policy_rules = (("compute", "compute_extension:detach_interfaces"),)
+ 
+     def allowed(self, request, instance):
+         return ((instance.status in ACTIVE_STATES
+diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/snapshots/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/snapshots/tables.py
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/snapshots/tables.py	2016-11-07 14:12:54.803242599 +0100
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/snapshots/tables.py	2016-11-07 14:14:31.070332699 +0100
+@@ -73,6 +73,21 @@
+     def delete(self, request, obj_id):
+         api.cinder.volume_snapshot_delete(request, obj_id)
+ 
++    def allowed(self, request, snapshot):
++        # If has a snapshot, get the volume owner
++        if snapshot:
++            volume_id = getattr(snapshot, "volume_id", None)
++            volume = cinder.volume_get(request, volume_id)
++            project_id = getattr(volume, "os-vol-tenant-attr:tenant_id", None)
++            user_id = getattr(volume, "user_id", None)
++            _allowed = policy.check((("volume", "volume:delete_snapshot"),),
++                                    request,
++                                    {"project_id": project_id, "user_id": user_id})
++            return _allowed
++        else:
++            # To display the 'Delete' button (no snapshot provided)
++            return True
++
+ 
+ class EditVolumeSnapshot(policy.PolicyTargetMixin, tables.LinkAction):
+     name = "edit"
+@@ -82,10 +97,19 @@
+     icon = "pencil"
+     policy_rules = (("volume", "volume:update_snapshot"),)
+     policy_target_attrs = (("project_id",
+-                            'os-extended-snapshot-attributes:project_id'),)
++                            'os-extended-snapshot-attributes:project_id'),
++                           ("user_id", 'user_id'))
+ 
+     def allowed(self, request, snapshot=None):
+-        return snapshot.status == "available"
++        volume_id = getattr(snapshot, "volume_id", None)
++        volume = cinder.volume_get(request, volume_id)
++        project_id = getattr(volume, "os-vol-tenant-attr:tenant_id", None)
++        user_id = getattr(volume, "user_id", None)
++        _allowed = \
++            policy.check((("volume", "volume:update_snapshot"),),
++                         request,
++                         {"project_id": project_id, "user_id": user_id})
++        return snapshot.status == "available" and _allowed
+ 
+ 
+ class CreateVolumeFromSnapshot(tables.LinkAction):
+@@ -102,8 +126,15 @@
+         return "?".join([base_url, params])
+ 
+     def allowed(self, request, volume=None):
++        _volume = cinder.volume_get(request, volume.volume_id)
++        project_id = getattr(_volume, "os-vol-tenant-attr:tenant_id", None)
++        user_id = getattr(_volume, "user_id", None)
++        _allowed = \
++            policy.check((("volume", "volume:update_snapshot"),),
++                         request,
++                         {"project_id": project_id, "user_id": user_id})
+         if volume and base.is_service_enabled(request, 'volume'):
+-            return volume.status == "available"
++            return volume.status == "available" and _allowed
+         return False
+ 
+ 
+diff -ur /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/volumes/tables.py /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/volumes/tables.py
+--- /usr/share/openstack-dashboard/openstack_dashboard.orig/dashboards/project/volumes/volumes/tables.py	2016-11-07 14:12:54.816217899 +0100
++++ /usr/share/openstack-dashboard/openstack_dashboard/dashboards/project/volumes/volumes/tables.py	2016-11-07 14:14:31.070332699 +0100
+@@ -37,7 +37,8 @@
+ 
+ 
+ class VolumePolicyTargetMixin(policy.PolicyTargetMixin):
+-    policy_target_attrs = (("project_id", 'os-vol-tenant-attr:tenant_id'),)
++    policy_target_attrs = (("project_id", 'os-vol-tenant-attr:tenant_id'),
++                           ("user_id", 'user_id'))
+ 
+ 
+ class LaunchVolume(tables.LinkAction):
+@@ -149,14 +150,15 @@
+     def allowed(self, request, volume=None):
+         if volume:
+             project_id = getattr(volume, "os-vol-tenant-attr:tenant_id", None)
++            user_id = getattr(volume, "user_id", None)
+             attach_allowed = \
+                 policy.check((("compute", "compute:attach_volume"),),
+                              request,
+-                             {"project_id": project_id})
++                             {"project_id": project_id, "user_id": user_id})
+             detach_allowed = \
+                 policy.check((("compute", "compute:detach_volume"),),
+                              request,
+-                             {"project_id": project_id})
++                             {"project_id": project_id, "user_id": user_id})
+ 
+             if attach_allowed or detach_allowed:
+                 return volume.status in ("available", "in-use")
