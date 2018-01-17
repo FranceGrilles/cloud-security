@@ -12,7 +12,6 @@
     "copy_from": "",
 
     "download_image": "",
-    "use_snapshot": "rule:admin_or_user",
     "upload_image": "",
 
     "delete_image_location": "",

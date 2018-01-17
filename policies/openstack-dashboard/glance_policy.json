@@ -12,8 +12,6 @@
     "publicize_image": "rule:admin_or_user",
     "copy_from": "",
 
-    "use_snapshot": "rule:admin_or_user",
-
     "download_image": "",
     "upload_image": "",
 

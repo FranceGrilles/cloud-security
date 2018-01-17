@@ -1,6 +1,6 @@
-diff -ur /usr/lib/python2.7/site-packages/glance.orig/api/v1/images.py /usr/lib/python2.7/site-packages/glance/api/v1/images.py
---- /usr/lib/python2.7/site-packages/glance.orig/api/v1/images.py	2016-07-22 10:28:23.539179363 +0200
-+++ /usr/lib/python2.7/site-packages/glance/api/v1/images.py	2016-08-03 11:55:52.738783943 +0200
+diff -ur /usr/lib/python2.7/dist-packages/glance.orig/api/v1/images.py /usr/lib/python2.7/dist-packages/glance/api/v1/images.py
+--- /usr/lib/python2.7/dist-packages/glance.orig/api/v1/images.py	2018-01-17 11:00:09.561489655 +0100
++++ /usr/lib/python2.7/dist-packages/glance/api/v1/images.py	2018-01-17 11:02:20.609647172 +0100
 @@ -450,6 +450,12 @@
          self._enforce(req, 'get_image')
          image_meta = self.get_image_meta_or_404(req, id)
